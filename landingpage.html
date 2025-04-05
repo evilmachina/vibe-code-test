@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>H&M Store Information</title>
+
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+
+    <style>
+      /* --- Basic Styling --- */
+      body {
+        font-family: 'Inter', sans-serif; margin: 0; padding: 20px; background-color: #f9fafb; color: #1f2937; line-height: 1.6;
+      }
+      .container {
+        max-width: 800px; margin: 20px auto; background-color: #ffffff; padding: 30px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      }
+      h1 {
+        font-size: 2em; font-weight: bold; margin-top: 0; margin-bottom: 25px; color: #111827;
+      }
+      h2 {
+        font-size: 1.4em; font-weight: 600; margin-top: 0; margin-bottom: 10px; color: #374151; border-bottom: 1px solid #e5e7eb; padding-bottom: 5px; display: flex; align-items: center;
+      }
+      section { margin-bottom: 25px; }
+      section > p, section > ul, section > div:not(.address-map-container):not(.concepts-container) {
+          margin-left: 30px; color: #4b5563;
+      }
+      ul { list-style: none; padding-left: 0; margin-top: 5px; }
+      li { margin-bottom: 6px; }
+      li.no-exceptions-message { font-style: italic; color: #6b7280; }
+      li span.label { font-weight: 500; display: inline-block; }
+      li span.day-name-label { width: 90px; }
+
+      /* --- Address & Map Layout --- */
+      .address-map-container {
+        display: flex; align-items: flex-start; gap: 20px; flex-wrap: wrap; margin-left: 30px; margin-top: 10px;
+      }
+      #store-address {
+        flex: 1; min-width: 200px; margin: 0; color: #4b5563;
+      }
+      #store-map-wrapper {
+        flex-basis: 250px; flex-shrink: 0; width: 250px; height: 250px;
+      }
+      #store-map {
+        width: 100%; height: 100%; border-radius: 8px; background: #eee;
+      }
+
+      /* --- Concepts Layout --- */
+      .concepts-container { display: flex; flex-wrap: wrap; gap: 8px; margin-left: 30px; }
+      .concept-badge { display: inline-block; background-color: #e0f2fe; color: #0c4a6e; font-size: 0.8em; font-weight: 500; padding: 3px 10px; border-radius: 12px; }
+
+      /* --- Phone Link Styling --- */
+      #store-phone a {
+        color: inherit; /* Make it look like normal text */
+        text-decoration: none; /* Remove underline */
+        cursor: pointer; /* Indicate it's clickable */
+      }
+      #store-phone a:hover,
+      #store-phone a:focus {
+        text-decoration: underline; /* Add underline on hover/focus */
+      }
+
+      .hidden { display: none; }
+      #loading-state, #error-state { text-align: center; padding: 40px 0; }
+      #loading-state p { margin-left: 0; color: #6b7280; }
+      #error-state { background-color: #fef2f2; border: 1px solid #fecaca; border-radius: 8px; padding: 20px; margin-top: 20px; }
+      #error-message { color: #b91c1c; font-weight: 500; margin-left: 0; }
+      #error-state p:last-child { color: #dc2626; font-size: 0.9em; margin-top: 8px; margin-left: 0; }
+
+      /* --- Lucide Icon Styling --- */
+      @font-face {
+        font-family: 'LucideIcons';
+        /* Corrected URL */
+        src: url(https://cdn.jsdelivr.net/npm/lucide-static@latest/font/Lucide.ttf) format('truetype');
+      }
+      .lucide { font-family: 'LucideIcons'; font-size: 1.25rem; line-height: 1; vertical-align: middle; margin-right: 0.5rem; }
+
+      /* --- Message Box Styling --- */
+      #message-box { display: none; position: fixed; top: 20px; left: 50%; transform: translateX(-50%); padding: 1rem 1.5rem; border-radius: 0.5rem; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); z-index: 1000; font-family: 'Inter', sans-serif; }
+      #message-box.success { background-color: #d1fae5; color: #065f46; }
+      #message-box.error { background-color: #fee2e2; color: #991b1b; }
+      #message-box.info { background-color: #dbeafe; color: #1e40af; }
+    </style>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+</head>
+<body>
+    <div class="container">
+        <h1 id="store-name">Loading store information...</h1>
+        <div id="message-box"></div>
+        <div id="store-details" class="hidden">
+
+            <section id="address-map-section">
+                <h2><span class="lucide">&#xe9dc;</span> Address & Location</h2>
+                <div class="address-map-container">
+                    <p id="store-address"></p>
+                    <div id="store-map-wrapper" class="hidden">
+                         <div id="store-map"></div>
+                    </div>
+                </div>
+            </section>
+
+            <section id="phone-section" class="hidden">
+                <h2><span class="lucide">&#xea1f;</span> Phone</h2>
+                <p id="store-phone"></p> </section>
+            <section>
+                <h2><span class="lucide">&#xe848;</span> Opening Hours</h2>
+                <ul id="store-opening-hours"></ul>
+            </section>
+            <section id="exceptions-section">
+                <h2><span class="lucide">&#xe80e;</span> Special Opening Hours</h2>
+                <ul id="store-exceptions"></ul>
+            </section>
+            <section id="concepts-section" class="hidden">
+                <h2><span class="lucide">&#xea73;</span> Concepts</h2>
+                <div id="store-concepts" class="concepts-container"></div>
+            </section>
+        </div>
+        <div id="loading-state">
+             <p id="loading-message">Fetching store data...</p>
+             <p>Loading...</p>
+        </div>
+         <div id="error-state" class="hidden">
+             <p id="error-message"></p>
+             <p>Check the store code in the URL or try again later.</p>
+         </div>
+    </div>
+
+    <script>
+        // --- Configuration ---
+        const API_URL = 'https://api.storelocator.hmgroup.tech/v2/brand/hm/stores/locale/sv_se/country/SE?_type=json&campaigns=true&departments=true&openinghours=true&maxnumberofstores=100';
+        const WEEKDAYS_EN = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
+        const DEFAULT_STORE_CODE = 'SE0004';
+        const NO_EXCEPTIONS_MESSAGE = "No special opening hours";
+
+        // --- DOM Elements ---
+        const storeNameEl = document.getElementById('store-name');
+        const storeDetailsEl = document.getElementById('store-details');
+        const storeAddressEl = document.getElementById('store-address');
+        const phoneSectionEl = document.getElementById('phone-section');
+        const storePhoneEl = document.getElementById('store-phone'); // The <p> tag
+        const storeOpeningHoursEl = document.getElementById('store-opening-hours');
+        const exceptionsSectionEl = document.getElementById('exceptions-section');
+        const storeExceptionsEl = document.getElementById('store-exceptions');
+        const conceptsSectionEl = document.getElementById('concepts-section');
+        const storeConceptsEl = document.getElementById('store-concepts');
+        const loadingStateEl = document.getElementById('loading-state');
+        const loadingMessageEl = document.getElementById('loading-message');
+        const errorStateEl = document.getElementById('error-state');
+        const errorMessageEl = document.getElementById('error-message');
+        const messageBoxEl = document.getElementById('message-box');
+        const storeMapWrapperEl = document.getElementById('store-map-wrapper');
+        const storeMapEl = document.getElementById('store-map');
+
+        // --- Map Instance Variable ---
+        let mapInstance = null;
+
+        // --- Helper Functions ---
+        function showMessage(message, type = 'info', duration = 3000) { /* ... */ }
+        function formatTimeRange(hours) { /* ... */ }
+        function formatDate(dateString) { /* ... */ }
+
+        // --- Display Logic ---
+        function displayStoreDetails(store) {
+            console.log("Store data received:", store);
+
+            storeNameEl.textContent = store.name || 'Store name missing';
+
+            // Address
+            let addressParts = [];
+            if (store.address?.streetName1) addressParts.push(store.address.streetName1);
+            if (store.address?.postalCode) addressParts.push(store.address.postalCode);
+            if (store.city) addressParts.push(store.city);
+            storeAddressEl.textContent = addressParts.length > 0 ? addressParts.join(', ') : 'Address details missing.';
+
+            // Map (Logic remains the same)
+            console.log("Store coordinates:", { lat: store.latitude, lon: store.longitude });
+            const lat = parseFloat(store.latitude);
+            const lon = parseFloat(store.longitude);
+            if (mapInstance) { mapInstance.remove(); mapInstance = null; }
+            storeMapEl.innerHTML = '';
+            if (!isNaN(lat) && !isNaN(lon)) {
+                storeMapWrapperEl.classList.remove('hidden');
+                try {
+                    mapInstance = L.map(storeMapEl).setView([lat, lon], 15);
+                    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors', maxZoom: 18, }).addTo(mapInstance);
+                    L.marker([lat, lon]).addTo(mapInstance); // Marker only
+                    setTimeout(() => { if (mapInstance) { mapInstance.invalidateSize(); } }, 10);
+                } catch (mapError) {
+                     console.error("!!! Error initializing Leaflet map:", mapError);
+                     storeMapWrapperEl.classList.add('hidden');
+                     showMessage('Could not load map.', 'error');
+                }
+            } else {
+                storeMapWrapperEl.classList.add('hidden');
+            }
+
+            // --- Phone ---
+            if (store.phone) {
+                const cleanedPhone = store.phone.replace(/[\s-()]/g, '');
+                const phoneLink = document.createElement('a');
+                phoneLink.href = `tel:${cleanedPhone}`;
+                phoneLink.textContent = store.phone;
+                storePhoneEl.innerHTML = '';
+                storePhoneEl.appendChild(phoneLink);
+                phoneSectionEl.classList.remove('hidden');
+            } else {
+                storePhoneEl.innerHTML = '';
+                phoneSectionEl.classList.add('hidden');
+            }
+
+
+            // --- Opening Hours ---
+            storeOpeningHoursEl.innerHTML = '';
+            if (store.openingHours && Array.isArray(store.openingHours) && store.openingHours.length > 0) {
+                const sortedHours = store.openingHours.slice().sort((a, b) => (a.day || 0) - (b.day || 0));
+                sortedHours.forEach(dayData => {
+                     const li = document.createElement('li');
+                     const dayName = dayData.name || (dayData.day >= 1 && dayData.day <= 7 ? WEEKDAYS_EN[dayData.day - 1] : `Day ${dayData.day}`);
+                     li.innerHTML = `<span class="label day-name-label">${dayName}:</span> ${formatTimeRange(dayData)}`;
+                     storeOpeningHoursEl.appendChild(li);
+                });
+            } else {
+                storeOpeningHoursEl.innerHTML = '<li>No regular opening hours specified.</li>';
+            }
+
+
+            // --- Opening Hours Exceptions (Using singular 'openingHourExceptions') ---
+            storeExceptionsEl.innerHTML = '';
+            let hasRelevantExceptions = false;
+            // *** Changed store.openingHoursExceptions to store.openingHourExceptions here ***
+            if (store.openingHourExceptions && Array.isArray(store.openingHourExceptions) && store.openingHourExceptions.length > 0) {
+                // *** Changed log message and variable access ***
+                console.log("Found exceptions array (raw, using singular name):", JSON.stringify(store.openingHourExceptions));
+                // *** Changed variable access ***
+                const sortedExceptions = store.openingHourExceptions.slice().sort((a, b) => { if (!a.date) return 1; if (!b.date) return -1; try { return new Date(a.date) - new Date(b.date); } catch (e) { return 0; } });
+                const currentDate = new Date(); currentDate.setHours(0, 0, 0, 0);
+                const futureExceptions = sortedExceptions.filter(ex => { if (!ex.date) return true; try { const d = new Date(ex.date); return !isNaN(d.getTime()) && d >= currentDate; } catch (e) { return false; } });
+                console.log("Filtered future exceptions:", JSON.stringify(futureExceptions));
+
+                if (futureExceptions.length > 0) {
+                    hasRelevantExceptions = true;
+                    futureExceptions.forEach((ex, index) => {
+                        try {
+                            const li = document.createElement('li');
+                            const dateStr = ex.date ? formatDate(ex.date) : (ex.name || 'Unknown date');
+                            const timeStr = formatTimeRange(ex);
+                            const exceptionLabel = (ex.name && ex.name !== dateStr) ? ` (${ex.name})` : '';
+                            li.innerHTML = `<span class="label date-label">${dateStr}:</span> ${timeStr}${exceptionLabel}`;
+                            storeExceptionsEl.appendChild(li);
+                        } catch (loopError) {
+                            console.error(`Error processing exception item ${index + 1}:`, ex, loopError);
+                             const errorLi = document.createElement('li');
+                             errorLi.innerHTML = `<strong style="color: red;">Error:</strong> Could not display exception for ${ex.date || ex.name || 'unknown date'}. See console.`;
+                             storeExceptionsEl.appendChild(errorLi);
+                        }
+                    });
+                }
+            } else {
+                 // *** Changed log message ***
+                 console.log("No openingHourExceptions (singular) array found or it is empty.");
+            }
+            if (!hasRelevantExceptions) {
+                const li = document.createElement('li');
+                li.textContent = NO_EXCEPTIONS_MESSAGE;
+                li.className = 'no-exceptions-message';
+                storeExceptionsEl.appendChild(li);
+            }
+
+            // --- Concepts ---
+            storeConceptsEl.innerHTML = '';
+            conceptsSectionEl.classList.add('hidden');
+            let conceptsSource = [];
+            if (store.departmentsWithConcepts && Array.isArray(store.departmentsWithConcepts) && store.departmentsWithConcepts.length > 0) { conceptsSource = store.departmentsWithConcepts; }
+            else if (store.departments && Array.isArray(store.departments) && store.departments.length > 0) { conceptsSource = store.departments; }
+            else if (store.concepts && Array.isArray(store.concepts) && store.concepts.length > 0) { conceptsSource = store.concepts; }
+            if (conceptsSource.length > 0) {
+                 conceptsSectionEl.classList.remove('hidden');
+                 conceptsSource.forEach(concept => {
+                    const badge = document.createElement('span');
+                    badge.className = 'concept-badge';
+                    let conceptName = 'Unknown concept';
+                    if (typeof concept === 'object' && concept !== null && concept.name) { conceptName = concept.name; }
+                    else if (typeof concept === 'string' && concept.trim() !== '') { conceptName = concept; }
+                    badge.textContent = conceptName;
+                    storeConceptsEl.appendChild(badge);
+                });
+            }
+
+            // Show main content, hide loading/error
+            storeDetailsEl.classList.remove('hidden');
+            loadingStateEl.classList.add('hidden');
+            errorStateEl.classList.add('hidden');
+            showMessage(`Displaying information for ${store.name}`, 'success', 2000);
+        }
+
+        // --- Data Fetching Logic ---
+        async function loadStoreData() { /* ... */ } // Keep as is
+
+        // --- Initialization ---
+        document.addEventListener('DOMContentLoaded', loadStoreData);
+
+        // --- Re-add Helper Functions (ensure they are complete) ---
+         function showMessage(message, type = 'info', duration = 3000) {
+            messageBoxEl.textContent = message;
+            messageBoxEl.className = `message-box ${type}`;
+            messageBoxEl.style.display = 'block';
+            setTimeout(() => { messageBoxEl.style.display = 'none'; }, duration);
+        }
+         function formatTimeRange(hours) {
+             try {
+                if (!hours) return "[No time data]";
+                if (hours.closedAllDay === true) return "Closed";
+                const opens = hours.opens;
+                const closes = hours.closes;
+                if (typeof opens !== 'string' || typeof closes !== 'string' || opens === '' || closes === '') {
+                     console.warn("Missing or invalid time properties in hour/exception object:", hours);
+                     return "Closed";
+                }
+                return `${opens} - ${closes}`;
+             } catch(e) {
+                 console.error("!!! Error inside formatTimeRange:", e.message, "| Input:", hours);
+                 return "[Time Error]";
+             }
+        }
+         function formatDate(dateString) {
+            try {
+                if (!dateString || typeof dateString !== 'string') throw new Error("Input date string is missing or not a string");
+                const date = new Date(dateString);
+                if (isNaN(date.getTime())) throw new Error(`Invalid date parsed from string: "${dateString}"`);
+                const options = { year: 'numeric', month: 'long', day: 'numeric' };
+                return date.toLocaleDateString('en-US', options);
+            } catch (e) {
+                console.error("!!! Error inside formatDate:", e.message, "| Input:", dateString);
+                return `[Date Error: ${dateString}]`;
+            }
+        }
+         async function loadStoreData() {
+            const urlParams = new URLSearchParams(window.location.search);
+            let storeCode = urlParams.get('storeCode');
+            let isDefault = false;
+
+            if (!storeCode) {
+                storeCode = DEFAULT_STORE_CODE;
+                isDefault = true;
+                console.log(`No storeCode in URL, using default: ${storeCode}`);
+            }
+            loadingMessageEl.textContent = `Fetching data for store ${storeCode}${isDefault ? ' (default)' : ''}...`;
+            loadingStateEl.classList.remove('hidden');
+            errorStateEl.classList.add('hidden');
+            storeDetailsEl.classList.add('hidden');
+
+            try {
+                const response = await fetch(API_URL);
+                if (!response.ok) {
+                    let errorText = response.statusText;
+                    try { const errorData = await response.json(); errorText = errorData.message || errorText; }
+                    catch(e) { /* Ignore */ }
+                    throw new Error(`API call failed: ${response.status} ${errorText}`);
+                }
+                const data = await response.json();
+
+                const stores = data.stores;
+                if (!stores || !Array.isArray(stores)) throw new Error("API response has unexpected format (missing 'stores' array).");
+
+                const selectedStore = stores.find(store => store.storeCode?.toLowerCase() === storeCode.toLowerCase());
+
+                if (selectedStore) {
+                    displayStoreDetails(selectedStore);
+                } else {
+                    const errorMsg = isDefault
+                        ? `Default store with code "${storeCode}" not found in API response.`
+                        : `Store with code "${storeCode}" not found.`;
+                    throw new Error(errorMsg);
+                }
+
+            } catch (error) {
+                console.error('Error loading store data:', error);
+                storeNameEl.textContent = 'Error during fetch';
+                loadingStateEl.classList.add('hidden');
+                errorStateEl.classList.remove('hidden');
+                errorMessageEl.textContent = error.message || 'Could not load store data.';
+                 const errorDetailEl = errorStateEl.querySelector('p:nth-child(2)');
+                 if(errorDetailEl) {
+                     errorDetailEl.textContent = isDefault
+                        ? 'The default store could not be found. Check the API or the default code.'
+                        : 'Check the store code in the URL or try again later.';
+                 }
+                showMessage('An error occurred while fetching store data.', 'error');
+            }
+        }
+
+    </script>
+
+</body>
+</html>

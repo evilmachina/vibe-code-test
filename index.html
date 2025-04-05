@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Store Locator Host Page</title>
+
+   
+    <script>
+        // Optional: Basic Tailwind config if needed, otherwise defaults are used
+        // tailwind.config = { theme: { extend: {} } }
+    </script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+    <style>
+        /* Ensure body takes height if locator root uses vh units */
+        html, body {
+            height: 100%;
+            margin: 0;
+            padding: 0;
+            font-family: 'Inter', sans-serif; /* Apply base font */
+        }
+    </style>
+
+</head>
+<body>
+
+    <h1>My Web Page</h1>
+    <p>The store locator will be loaded below:</p>
+
+    <div id="store-locator-root">
+        <p style="padding: 1em; color: #555;">Loading Store Locator...</p>
+    </div>
+
+    <hr>
+    <p>Other content on the page.</p>
+
+    <script src="store-locator.js"></script>
+
+</body>
+</html>
